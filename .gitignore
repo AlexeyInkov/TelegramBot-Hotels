@@ -1,5 +1,3 @@
 .idea/
 *.log
 *.txt
-Source data/
-.env
