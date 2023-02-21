@@ -23,6 +23,7 @@ def get_city(message: Message) -> None:
     bot.send_message(message.from_user.id, f'Сколько вывезти отелей в {message.text}')
     bot.set_state(message.from_user.id, UserInfoState.lp_count_hotel, message.chat.id)
 
+
 @bot.message_handler(state=UserInfoState.lp_count_hotel)
 def get_count_hotel(message: Message) -> None:
     bot.send_message(message.from_user.id, 'Нужны фото?')
