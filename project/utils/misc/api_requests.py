@@ -14,21 +14,21 @@ def api_request(method_endswith: str,  # Меняется в зависимос�
         return json.loads(post_request(url=url, params=params))
 
 
-def get_request(url: str, params: dict):
+def get_request(url: str, params: dict) -> str:
     headers = {
         "X-RapidAPI-Key": config.RAPID_API_KEY,
         "X-RapidAPI-Host": "hotels4.p.rapidapi.com"
     }
-    getresponse = requests.get(url, headers=headers, params=params, timeout=15)
+    getresponse = requests.get(url, headers=headers, params=params, timeout=20)
     if getresponse.status_code == requests.codes.ok:
         return getresponse.text
 
 
-def post_request(url: str, params: dict):
+def post_request(url: str, params: dict) -> str:
     headers = {
         "content-type": "application/json",
         "X-RapidAPI-Key": config.RAPID_API_KEY,
         "X-RapidAPI-Host": "hotels4.p.rapidapi.com"}
-    postresponse = requests.post(url, headers=headers, json=params, timeout=15)
+    postresponse = requests.post(url, headers=headers, json=params, timeout=20)
     if postresponse.status_code == requests.codes.ok:
         return postresponse.text
