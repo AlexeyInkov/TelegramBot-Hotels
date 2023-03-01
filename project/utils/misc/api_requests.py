@@ -19,7 +19,7 @@ def get_request(url: str, params: dict) -> str:
         "X-RapidAPI-Key": config.RAPID_API_KEY,
         "X-RapidAPI-Host": "hotels4.p.rapidapi.com"
     }
-    getresponse = requests.get(url, headers=headers, params=params, timeout=20)
+    getresponse = requests.get(url, headers=headers, params=params)
     if getresponse.status_code == requests.codes.ok:
         return getresponse.text
 
@@ -29,6 +29,6 @@ def post_request(url: str, params: dict) -> str:
         "content-type": "application/json",
         "X-RapidAPI-Key": config.RAPID_API_KEY,
         "X-RapidAPI-Host": "hotels4.p.rapidapi.com"}
-    postresponse = requests.post(url, headers=headers, json=params, timeout=20)
+    postresponse = requests.post(url, headers=headers, json=params)
     if postresponse.status_code == requests.codes.ok:
         return postresponse.text
