@@ -2,7 +2,7 @@ import telebot.types
 from telebot.types import Message, CallbackQuery, ReplyKeyboardRemove
 from loader import bot
 from loguru import logger
-
+import json
 import datetime
 
 from loader import calendar, calendar_in, calendar_out
@@ -19,9 +19,10 @@ now = datetime.datetime.now()
 
 @bot.message_handler(commands=["lowprice"])
 def bot_lowprice(message: Message) -> None:
-    lowprice_dict[message.from_user.id] = dict()
-    lowprice_dict[message.from_user.id]['sort'] = 'PRICE_LOW_TO_HIGH',
-    lowprice_dict[message.from_user.id]['filters'] = {'availableFilter': 'SHOW_AVAILABLE_ONLY'}
+    lowprice_dict[message.from_user.id] = {
+        'sort': 'PRICE_LOW_TO_HIGH',
+        'filters': {'availableFilter': 'SHOW_AVAILABLE_ONLY'}
+    }
     logger.debug('{} (вход в lowprice)'.format(message.from_user.full_name))
     bot.send_message(message.chat.id, 'Выберите дату заезда:', reply_markup=calendar.create_calendar(
         name=calendar_in.prefix,
@@ -107,7 +108,6 @@ def get_city(message: Message) -> None:
 
 @bot.callback_query_handler(func=lambda call: True)
 def chose_city(call: CallbackQuery) -> None:
-    print(lowprice_dict[call.from_user.id]['chose_city'])
     for key in lowprice_dict[call.from_user.id]['chose_city']:
         if call.data == lowprice_dict[call.from_user.id]['chose_city'][key][0]:
             lowprice_dict[call.from_user.id]['city'] = call.data
@@ -134,6 +134,9 @@ def get_count_hotel(message: Message) -> None:
 
 @bot.message_handler(state=UserInfoState.lp_photo)
 def get_photo(message: Message) -> None:
+    with open('log/param.json', 'w') as js:
+        json.dump(lowprice_dict, js, indent=4)
+    print(lowprice_dict)
     if message.text.lower() == 'yes':
         lowprice_dict[message.from_user.id]['photo'] = True
         bot.send_message(message.from_user.id, 'Сколько нужно фото?\nНе более 10 шт.', reply_markup=None)
