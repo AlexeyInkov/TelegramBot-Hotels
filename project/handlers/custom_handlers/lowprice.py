@@ -32,6 +32,7 @@ def bot_lowprice(message: Message) -> None:
     bot.set_state(message.from_user.id, UserInfoState.lp_date_in)
 
 
+@bot.message_handler(state=UserInfoState.lp_date_in)
 @bot.callback_query_handler(func=lambda call: call.data.startswith(calendar_in.prefix))
 def get_date_in(call: CallbackQuery) -> None:
     name, action, year, month, day = call.data.split(calendar_in.sep)
@@ -55,6 +56,7 @@ def get_date_in(call: CallbackQuery) -> None:
         bot.set_state(call.from_user.id, UserInfoState.lp_date_out)
 
 
+@bot.message_handler(state=UserInfoState.lp_date_out)
 @bot.callback_query_handler(func=lambda call: call.data.startswith(calendar_out.prefix))
 def get_date_out(call: CallbackQuery) -> None:
     name, action, year, month, day = call.data.split(calendar_out.sep)
@@ -106,6 +108,7 @@ def get_city(message: Message) -> None:
         logger.debug('{} уточняет город .'.format(message.from_user.full_name))
         
 
+@bot.message_handler(state=UserInfoState.lp_chose_city)
 @bot.callback_query_handler(func=lambda call: True)
 def chose_city(call: CallbackQuery) -> None:
     for key in lowprice_dict[call.from_user.id]['chose_city']:
@@ -121,6 +124,7 @@ def chose_city(call: CallbackQuery) -> None:
     else:
         logger.debug('{} не понял, прилетело: {}'.format(call.from_user.full_name, call.data))
         
+
 @bot.message_handler(state=UserInfoState.lp_count_hotel)
 def get_count_hotel(message: Message) -> None:
     if message.text.isdigit():
@@ -131,7 +135,6 @@ def get_count_hotel(message: Message) -> None:
         bot.send_message(message.from_user.id, 'Необходимо ввести число')
     
         
-
 @bot.message_handler(state=UserInfoState.lp_photo)
 def get_photo(message: Message) -> None:
     with open('log/param.json', 'w') as js:
@@ -139,7 +142,11 @@ def get_photo(message: Message) -> None:
     print(lowprice_dict)
     if message.text.lower() == 'yes':
         lowprice_dict[message.from_user.id]['photo'] = True
-        bot.send_message(message.from_user.id, 'Сколько нужно фото?\nНе более 10 шт.', reply_markup=None)
+        bot.send_message(
+            message.from_user.id,
+            'Сколько нужно фото?\nНе более 10 шт.',
+            reply_markup=ReplyKeyboardRemove()
+        )
         bot.set_state(message.from_user.id, UserInfoState.lp_count_photo, message.chat.id)
     else:
         lowprice_dict[message.from_user.id]['photo'] = False

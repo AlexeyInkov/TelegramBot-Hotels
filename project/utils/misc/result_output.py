@@ -1,9 +1,7 @@
-import json
 from telebot.types import Message, InputMediaPhoto
 from loader import bot
 from utils.misc.api_requests import api_request
 from loguru import logger
-from urllib.request import urlopen
 
 
 def get_result(message: Message, dict_set: dict) -> None:
