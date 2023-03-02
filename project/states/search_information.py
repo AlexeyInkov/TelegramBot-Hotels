@@ -2,7 +2,6 @@ from telebot.handler_backends import State, StatesGroup
 
 
 class UserInfoState(StatesGroup):
-    reset = State()
     lp_date_in = State()
     lp_date_out = State()
     lp_city = State()
@@ -17,3 +16,13 @@ class UserInfoState(StatesGroup):
     hp_count_hotel = State()
     hp_photo = State()
     hp_count_photo = State()
+    bd_date_in = State()
+    bd_date_out = State()
+    bd_price_min = State()
+    bd_price_max = State()
+    bd_dist_max = State()
+    bd_city = State()
+    bd_chose_city = State()
+    bd_count_hotel = State()
+    bd_photo = State()
+    bd_count_photo = State()
