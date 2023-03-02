@@ -5,7 +5,7 @@ from loguru import logger
 import json
 import datetime
 
-from loader import calendar, calendar_in, calendar_out
+from loader import calendar, calendar_in
 from states.search_information import UserInfoState
 from utils.misc.api_requests import api_request
 from utils.misc.result_output import get_result
@@ -32,8 +32,7 @@ def bot_lowprice(message: Message) -> None:
     bot.set_state(message.from_user.id, UserInfoState.lp_date_in)
 
 
-@bot.message_handler(state=UserInfoState.lp_date_in)
-@bot.callback_query_handler(func=lambda call: call.data.startswith(calendar_in.prefix))
+@bot.callback_query_handler(func=lambda call: call.data.startswith(calendar_in.prefix), state=UserInfoState.lp_date_in)
 def get_date_in(call: CallbackQuery) -> None:
     name, action, year, month, day = call.data.split(calendar_in.sep)
     date = calendar.calendar_query_handler(bot=bot, call=call, name=name, action=action, year=year, month=month,
@@ -48,7 +47,7 @@ def get_date_in(call: CallbackQuery) -> None:
             chat_id=call.from_user.id,
             text='Выберите дату выезда:',
             reply_markup=calendar.create_calendar(
-                name=calendar_out.prefix,
+                name=calendar_in.prefix,
                 year=now.year,
                 month=now.month
             )
@@ -56,10 +55,9 @@ def get_date_in(call: CallbackQuery) -> None:
         bot.set_state(call.from_user.id, UserInfoState.lp_date_out)
 
 
-@bot.message_handler(state=UserInfoState.lp_date_out)
-@bot.callback_query_handler(func=lambda call: call.data.startswith(calendar_out.prefix))
+@bot.callback_query_handler(func=lambda call: call.data.startswith(calendar_in.prefix), state=UserInfoState.lp_date_out)
 def get_date_out(call: CallbackQuery) -> None:
-    name, action, year, month, day = call.data.split(calendar_out.sep)
+    name, action, year, month, day = call.data.split(calendar_in.sep)
     date = calendar.calendar_query_handler(bot=bot, call=call, name=name, action=action, year=year, month=month,
                                            day=day)
     if action == 'DAY':
@@ -108,8 +106,7 @@ def get_city(message: Message) -> None:
         logger.debug('{} уточняет город .'.format(message.from_user.full_name))
         
 
-@bot.message_handler(state=UserInfoState.lp_chose_city)
-@bot.callback_query_handler(func=lambda call: True)
+@bot.callback_query_handler(func=lambda call: True, state=UserInfoState.lp_chose_city)
 def chose_city(call: CallbackQuery) -> None:
     for key in lowprice_dict[call.from_user.id]['chose_city']:
         if call.data == lowprice_dict[call.from_user.id]['chose_city'][key][0]:
