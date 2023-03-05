@@ -1,6 +1,3 @@
-import datetime
-
-import loguru
 from telebot.types import Message, InputMediaPhoto
 from loader import bot
 from utils.misc.api_requests import api_request
@@ -8,7 +5,6 @@ from loguru import logger
 from database.model import *
 
 
-@logger.catch
 def get_result(message: Message, dict_set: dict) -> None:
 	method_endswith = "properties/v2/list"
 	payload = {
@@ -19,8 +15,8 @@ def get_result(message: Message, dict_set: dict) -> None:
 		'destination': {
 			'regionId': dict_set[message.from_user.id]['city_id']
 		},
-		'checkInDate': dict_set[message.from_user.id]['command_param']['date_in'],
-		'checkOutDate': dict_set[message.from_user.id]['command_param']['date_out'],
+		'checkInDate': dict_set[message.from_user.id]['command_param']['date_in_dict'],
+		'checkOutDate': dict_set[message.from_user.id]['command_param']['date_out_dict'],
 		'rooms': [{'adults': 1}],
 		'resultsStartingIndex': 0,
 		'resultsSize': int(dict_set[message.from_user.id]['command_param']['count_hotel']),
@@ -36,13 +32,25 @@ def get_result(message: Message, dict_set: dict) -> None:
 		)
 	)
 	with db:
-		lp = Command.create(
+		com = Command.create(
 			user_id=message.from_user.id,
 			command=dict_set[message.from_user.id]['command_name'],
 			city_id=dict_set[message.from_user.id]['city_id'],
 			city=dict_set[message.from_user.id]['city'],
 			command_time=dict_set[message.from_user.id]['command_time']
 			)
+		par = CommandParam.create(
+			date_in=dict_set[message.from_user.id]['command_param']['date_in'],
+			date_out=dict_set[message.from_user.id]['command_param']['date_out'],
+			count_hotel=dict_set[message.from_user.id]['command_param']['count_hotel'],
+			photo=dict_set[message.from_user.id]['command_param']['photo'],
+			count_photo=dict_set[message.from_user.id]['command_param']['count_photo'],
+			price_min=dict_set[message.from_user.id]['command_param']['price_min'],
+			price_max=dict_set[message.from_user.id]['command_param']['price_max'],
+			hotel_distance_min=dict_set[message.from_user.id]['command_param']['hotel_distance_min'],
+			hotel_distance_max=dict_set[message.from_user.id]['command_param']['hotel_distance_max'],
+			command_id=com
+		)
 		
 		for elem in response2['data']['propertySearch']['properties']:
 			# Запрос подробностей
@@ -61,26 +69,27 @@ def get_result(message: Message, dict_set: dict) -> None:
 			dict_set[message.from_user.id]['command_result']['hotel_name'] = elem['name']
 			dict_set[message.from_user.id]['command_result']['hotel_address'] = \
 				response3['data']['propertyInfo']['summary']['location']['address']['addressLine']
-			dict_set[message.from_user.id]['command_result']['far_centr'] = \
+			dict_set[message.from_user.id]['command_result']['hotel_distance'] = \
 				elem['destinationInfo']['distanceFromDestination']['value']
 			dict_set[message.from_user.id]['command_result']['cost_night'] = \
 				elem["price"]['lead']['amount']
 			cost = dict_set[message.from_user.id]['command_result']['cost_night'] * \
-				dict_set[message.from_user.id]['command_result']['hotel_days']
+				dict_set[message.from_user.id]['command_result']['hotel_night']
 			dict_set[message.from_user.id]['command_result']['cost'] = cost
 			answer = """
 			Отель: {hotel_name}\n
 			Адрес отеля: {hotel_address}\n
 			Расстояние до центра: {hotel_distance}км\n
-			Стоимость Общая: {cost}\n
-			Стоимость за ночь: {cost_night}\n
+			Стоимость за {hotel_night} ночей: ${cost}\n
+			Стоимость за ночь: ${cost_night}\n
 			https://www.hotels.com/ho{hotel_id}\n
 			""".format(
-				hotel_name= dict_set[message.from_user.id]['command_result']['hotel_name'],
+				hotel_name=dict_set[message.from_user.id]['command_result']['hotel_name'],
 				hotel_address=dict_set[message.from_user.id]['command_result']['hotel_address'],
-				hotel_distance=dict_set[message.from_user.id]['command_result']['far_centr'],
-				cost=dict_set[message.from_user.id]['command_result']['cost'],
-				cost_night=dict_set[message.from_user.id]['command_result']['cost_night'],
+				hotel_distance=round(dict_set[message.from_user.id]['command_result']['hotel_distance'], 2),
+				cost=round(dict_set[message.from_user.id]['command_result']['cost'], 2),
+				cost_night=round(dict_set[message.from_user.id]['command_result']['cost_night'], 2),
+				hotel_night=dict_set[message.from_user.id]['command_result']['hotel_night'],
 				hotel_id=dict_set[message.from_user.id]['command_result']['hotel_id']
 			)
 			bot.send_message(message.from_user.id, answer)
@@ -90,18 +99,18 @@ def get_result(message: Message, dict_set: dict) -> None:
 				dict_set[message.from_user.id]['command_result']['hotel_id']
 				)
 			)
-			result = CommandResult.create(
+			res = CommandResult.create(
 				hotel_id=dict_set[message.from_user.id]['command_result']['hotel_id'],
 				hotel_name=dict_set[message.from_user.id]['command_result']['hotel_name'],
 				hotel_address=dict_set[message.from_user.id]['command_result']['hotel_address'],
-				hotel_distance=dict_set[message.from_user.id]['command_result']['far_centr'],
-				cost=dict_set[message.from_user.id]['command_result']['cost'],
-				cost_night=dict_set[message.from_user.id]['command_result']['cost_night'],
-				hotel_days=dict_set[message.from_user.id]['command_result']['hotel_days'],
+				hotel_distance=round(dict_set[message.from_user.id]['command_result']['hotel_distance'], 2),
+				cost=round(dict_set[message.from_user.id]['command_result']['cost'], 2),
+				cost_night=round(dict_set[message.from_user.id]['command_result']['cost_night'], 2),
+				hotel_night=dict_set[message.from_user.id]['command_result']['hotel_night'],
 				hotel_url='https://www.hotels.com/ho{}'.format(
 					dict_set[message.from_user.id]['command_result']['hotel_id']
 				),
-				command_id=lp
+				command_id=com
 			)
 			if dict_set[message.from_user.id]['command_param']['photo']:
 				logger.debug('{} id города {} выводим фото для id отеля {}'.format(

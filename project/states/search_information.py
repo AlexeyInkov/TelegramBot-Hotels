@@ -26,3 +26,4 @@ class UserInfoState(StatesGroup):
     bd_count_hotel = State()
     bd_photo = State()
     bd_count_photo = State()
+    hi_count = State()
