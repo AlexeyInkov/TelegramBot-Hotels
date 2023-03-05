@@ -1,4 +1,4 @@
-import telebot.types
+import time
 from telebot.types import Message, CallbackQuery, ReplyKeyboardRemove
 from loader import bot
 from loguru import logger
@@ -20,15 +20,19 @@ now = datetime.datetime.now()
 @bot.message_handler(commands=["lowprice"])
 def bot_lowprice(message: Message) -> None:
     lowprice_dict[message.from_user.id] = {
-        'sort': 'PRICE_LOW_TO_HIGH',
-        'filters': {'availableFilter': 'SHOW_AVAILABLE_ONLY'}
+        'command_name': 'lowprice',
+        'command_time': datetime.datetime.now(),
+        'command_param': {
+            'sort': 'PRICE_LOW_TO_HIGH',
+            'filters': {'availableFilter': 'SHOW_AVAILABLE_ONLY'}
+        }
     }
     logger.debug('{} (вход в lowprice)'.format(message.from_user.full_name))
     bot.send_message(message.chat.id, 'Выберите дату заезда:', reply_markup=calendar.create_calendar(
         name=calendar_in.prefix,
         year=now.year,
         month=now.month)
-                     )
+    )
     bot.set_state(message.from_user.id, UserInfoState.lp_date_in)
 
 
@@ -39,19 +43,22 @@ def get_date_in(call: CallbackQuery) -> None:
                                            day=day)
     if action == 'DAY':
         logger.debug('{} Заезд {}/{}/{}'.format(call.from_user.full_name, day, month, year))
-        lowprice_dict[call.from_user.id]['date_in'] = {'day': int(date.strftime("%d")),
-                                                       'month': int(date.strftime("%m")),
-                                                       'year': int(date.strftime("%Y"))
-                                                       }
+        lowprice_dict[call.from_user.id]['command_param']['date_in'] = {
+            'day': int(date.strftime("%d")),
+            'month': int(date.strftime("%m")),
+            'year': int(date.strftime("%Y"))
+        }
+        
         bot.send_message(
             chat_id=call.from_user.id,
-            text='Выберите дату выезда:',
+            text='Понял заезжаем {}/{}/{}\nВыберите дату выезда:'.format(day, month, year),
             reply_markup=calendar.create_calendar(
                 name=calendar_in.prefix,
                 year=now.year,
                 month=now.month
             )
         )
+        
         bot.set_state(call.from_user.id, UserInfoState.lp_date_out)
 
 
@@ -61,11 +68,32 @@ def get_date_out(call: CallbackQuery) -> None:
     date = calendar.calendar_query_handler(bot=bot, call=call, name=name, action=action, year=year, month=month,
                                            day=day)
     if action == 'DAY':
-        lowprice_dict[call.from_user.id]['date_out'] = {'day': int(date.strftime("%d")),
-                                                        'month': int(date.strftime("%m")),
-                                                        'year': int(date.strftime("%Y"))
-                                                        }
-        bot.send_message(call.from_user.id, 'В каком городе будем искать?\n(Россия временно не работает)')
+        lowprice_dict[call.from_user.id]['command_param']['date_out'] = {
+            'day': int(date.strftime("%d")),
+            'month': int(date.strftime("%m")),
+            'year': int(date.strftime("%Y"))
+        }
+        date_out = datetime.date(
+            lowprice_dict[call.from_user.id]['command_param']['date_out']['year'],
+            lowprice_dict[call.from_user.id]['command_param']['date_out']['month'],
+            lowprice_dict[call.from_user.id]['command_param']['date_out']['day']
+        )
+        date_in = datetime.date(
+            lowprice_dict[call.from_user.id]['command_param']['date_in']['year'],
+            lowprice_dict[call.from_user.id]['command_param']['date_in']['month'],
+            lowprice_dict[call.from_user.id]['command_param']['date_in']['day']
+        )
+        hotel_days = (date_out - date_in).days
+        lowprice_dict[call.from_user.id]['command_result'] = {
+            'hotel_days': hotel_days
+        }
+        bot.send_message(call.from_user.id, 'Понял выезжаем {}/{}/{}\n'
+                                            'Посчитаем сколько дней\n'.format(day, month, year))
+        bot.send_message(call.from_user.id, '...')
+        time.sleep(2)  # чтобы не склонять слово день
+        bot.send_message(call.from_user.id, '{}\n'
+                                            'В каком городе будем искать?\n'
+                                            '(Россия временно не работает)'.format(hotel_days))
         bot.set_state(call.from_user.id, UserInfoState.lp_city)
         logger.debug('{} Выезд {}/{}/{}'.format(call.from_user.full_name, day, month, year))
 
@@ -78,29 +106,34 @@ def get_city(message: Message) -> None:
     response = api_request(method_type="GET",
                            method_endswith=method_endswith,
                            params={"q": message.text, "locale": "ru_RU"})
-    lowprice_dict[message.from_user.id]['chose_city'] = dict()
+    lowprice_dict[message.from_user.id]['command_param']['chose_city'] = dict()
     # Поиск с атрибутом CITY
     key = 0
     for answer in response['sr']:
         if answer['type'] == 'CITY':
-            lowprice_dict[message.from_user.id]['chose_city'][key] =\
+            lowprice_dict[message.from_user.id]['command_param']['chose_city'][key] =\
                 (answer['gaiaId'], answer['regionNames']['displayName'])
             key += 1
-    if len(lowprice_dict[message.from_user.id]['chose_city']) == 0:
+    if len(lowprice_dict[message.from_user.id]['command_param']['chose_city']) == 0:
         logger.debug('{} Город не найден.'.format(message.from_user.full_name))
         bot.send_message(message.from_user.id, 'Город не найден. Повторите')
-    elif len(lowprice_dict[message.from_user.id]['chose_city']) == 1:
-        lowprice_dict[message.from_user.id]['city'] = lowprice_dict[message.from_user.id]['chose_city'][0][0]
-        bot.send_message(message.from_user.id, "Сколько вывезти отелей?")
+    elif len(lowprice_dict[message.from_user.id]['command_param']['chose_city']) == 1:
+        lowprice_dict[message.from_user.id]['city'] =\
+            lowprice_dict[message.from_user.id]['command_param']['chose_city'][0][1]
+        lowprice_dict[message.from_user.id]['city_id'] =\
+            lowprice_dict[message.from_user.id]['command_param']['chose_city'][0][0]
+        bot.send_message(
+            message.from_user.id,
+            "Понял город {}\nСколько вывезти отелей?".format(lowprice_dict[message.from_user.id]['city']))
         bot.set_state(message.from_user.id, UserInfoState.lp_count_hotel)
         logger.debug('Запрос от {} id города {}'.format(
             message.from_user.full_name,
-            lowprice_dict[message.from_user.id]['city'])
+            lowprice_dict[message.from_user.id]['city_id'])
         )
     else:
         bot.send_message(message.from_user.id,
-                         'Уточните город?',
-                         reply_markup=city(lowprice_dict[message.from_user.id]['chose_city'])
+                         'Нашлось несколько вариантов\nУточните нужный Вам город.\nНажми на соответствующую кнопку.',
+                         reply_markup=city(lowprice_dict[message.from_user.id]['command_param']['chose_city'])
                          )
         bot.set_state(message.from_user.id, UserInfoState.lp_chose_city)
         logger.debug('{} уточняет город .'.format(message.from_user.full_name))
@@ -108,16 +141,21 @@ def get_city(message: Message) -> None:
 
 @bot.callback_query_handler(func=lambda call: True, state=UserInfoState.lp_chose_city)
 def chose_city(call: CallbackQuery) -> None:
-    for key in lowprice_dict[call.from_user.id]['chose_city']:
-        if call.data == lowprice_dict[call.from_user.id]['chose_city'][key][0]:
-            lowprice_dict[call.from_user.id]['city'] = call.data
+    for key in lowprice_dict[call.from_user.id]['command_param']['chose_city']:
+        if call.data == lowprice_dict[call.from_user.id]['command_param']['chose_city'][key][0]:
+            lowprice_dict[call.from_user.id]['city_id'] = call.data
+            lowprice_dict[call.from_user.id]['city'] =\
+                lowprice_dict[call.from_user.id]['command_param']['chose_city'][key][1]
             logger.debug('{} прилетело:{}'.format(call.from_user.full_name, call.data))
-            bot.send_message(call.from_user.id, "Сколько вывезти отелей?")
+            bot.send_message(
+                call.from_user.id,
+                "Понял город {}\nСколько вывезти отелей?".format(lowprice_dict[call.from_user.id]['city']))
             bot.set_state(call.from_user.id, UserInfoState.lp_count_hotel)
             logger.debug('Запрос от {} id города {}'.format(
                         call.from_user.full_name,
-                        lowprice_dict[call.from_user.id]['city']
-                    ))
+                        lowprice_dict[call.from_user.id]['city_id']
+                        )
+            )
     else:
         logger.debug('{} не понял, прилетело: {}'.format(call.from_user.full_name, call.data))
         
@@ -125,8 +163,15 @@ def chose_city(call: CallbackQuery) -> None:
 @bot.message_handler(state=UserInfoState.lp_count_hotel)
 def get_count_hotel(message: Message) -> None:
     if message.text.isdigit():
-        lowprice_dict[message.from_user.id]['count_hotel'] = message.text
-        bot.send_message(message.from_user.id, 'Нужны фото?', reply_markup=y_n())
+        lowprice_dict[message.from_user.id]['command_param']['count_hotel'] = message.text
+        bot.send_message(
+            message.from_user.id,
+            'Понял выводим ТОП{} недорогих отелей города {}\nДобавить фото?'.format(
+                lowprice_dict[message.from_user.id]['command_param']['count_hotel'],
+                lowprice_dict[message.from_user.id]['city']
+            ),
+            reply_markup=y_n()
+        )
         bot.set_state(message.from_user.id, UserInfoState.lp_photo, message.chat.id)
     else:
         bot.send_message(message.from_user.id, 'Необходимо ввести число')
@@ -134,19 +179,16 @@ def get_count_hotel(message: Message) -> None:
         
 @bot.message_handler(state=UserInfoState.lp_photo)
 def get_photo(message: Message) -> None:
-    with open('log/param.json', 'w') as js:
-        json.dump(lowprice_dict, js, indent=4)
-    print(lowprice_dict)
     if message.text.lower() == 'yes':
-        lowprice_dict[message.from_user.id]['photo'] = True
+        lowprice_dict[message.from_user.id]['command_param']['photo'] = True
         bot.send_message(
             message.from_user.id,
-            'Сколько нужно фото?\nНе более 10 шт.',
+            'А сколько загрузить фото?\nНо не более 10 шт.',
             reply_markup=ReplyKeyboardRemove()
         )
         bot.set_state(message.from_user.id, UserInfoState.lp_count_photo, message.chat.id)
     else:
-        lowprice_dict[message.from_user.id]['photo'] = False
+        lowprice_dict[message.from_user.id]['command_param']['photo'] = False
         get_result(message=message, dict_set=lowprice_dict)
     
         
@@ -154,9 +196,9 @@ def get_photo(message: Message) -> None:
 def get_count_photo(message: Message) -> None:
     if message.text.isdigit():
         if int(message.text) <= 10:
-            lowprice_dict[message.from_user.id]['count_photo'] = message.text
+            lowprice_dict[message.from_user.id]['command_param']['count_photo'] = message.text
         else:
-            lowprice_dict[message.from_user.id]['count_photo'] = 10
+            lowprice_dict[message.from_user.id]['command_param']['count_photo'] = 10
         get_result(message=message, dict_set=lowprice_dict)
     else:
         bot.send_message(message.from_user.id, 'Необходимо ввести число')

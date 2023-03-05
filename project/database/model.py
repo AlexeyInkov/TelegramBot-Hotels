@@ -1,8 +1,8 @@
 from peewee import SqliteDatabase, Model, PrimaryKeyField, ForeignKeyField
-from peewee import CharField, IntegerField, DateTimeField, FloatField
+from peewee import CharField, IntegerField, DateTimeField, FloatField, BooleanField, DateField
 
 
-db = SqliteDatabase('history.db')
+db = SqliteDatabase('./history.db')
 
 
 class BaseModel(Model):
@@ -16,26 +16,46 @@ class BaseModel(Model):
 class Command(BaseModel):
 	user_id = IntegerField()
 	command = CharField()
-	params = CharField(null=True)
+	city_id = IntegerField()
+	city = CharField()
 	command_time = DateTimeField()
+	
 	
 	class Meta:
 		bd_table = 'commands'
 
 
-class ResultCommand(BaseModel):
+class CommandParam(BaseModel):
+	date_in = DateField()
+	date_out = DateField()
+	count_hotel = IntegerField()
+	photo = BooleanField()
+	photo_count = IntegerField()
+	price_min = FloatField()
+	price_max = FloatField()
+	hotel_distance_min = FloatField()
+	hotel_distance_max = FloatField()
+	command_id = ForeignKeyField(Command)
+	
+	class Meta:
+		db_table = 'command_params'
+
+
+class CommandResult(BaseModel):
 	hotel_id = IntegerField()
 	hotel_name = CharField()
 	hotel_address = CharField()
 	hotel_distance = FloatField()
-	hotel_price = FloatField()
+	cost = FloatField()
+	cost_night = FloatField()
+	hotel_days = IntegerField()
 	hotel_url = CharField()
 	command_id = ForeignKeyField(Command)
 	
 	class Meta:
-		db_table = 'resultscommands'
+		db_table = 'command_result'
 
 
 with db:
-	db.create_tables([Command, ResultCommand])
+	db.create_tables([Command, CommandResult, CommandParam])
 	
