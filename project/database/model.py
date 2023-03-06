@@ -27,6 +27,7 @@ class Command(BaseModel):
 class CommandParam(BaseModel):
 	date_in = DateField()
 	date_out = DateField()
+	hotel_night = IntegerField()
 	count_hotel = IntegerField()
 	photo = BooleanField()
 	count_photo = IntegerField()
@@ -47,12 +48,11 @@ class CommandResult(BaseModel):
 	hotel_distance = FloatField()
 	cost = FloatField()
 	cost_night = FloatField()
-	hotel_night = IntegerField()
 	hotel_url = CharField()
 	command_id = ForeignKeyField(Command, related_name='result')
 	
 	class Meta:
-		db_table = 'command_result'
+		db_table = 'command_results'
 
 
 with db:

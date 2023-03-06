@@ -1,8 +1,10 @@
+from typing import Dict, Any
 from telebot.types import Message, InputMediaPhoto
 from loader import bot
 from utils.misc.api_requests import api_request
+from utils.misc.db_save import save_in_db
+from utils.misc.currency import get_currency_price
 from loguru import logger
-from database.model import *
 
 
 def get_result(message: Message, dict_set: dict) -> None:
@@ -23,7 +25,6 @@ def get_result(message: Message, dict_set: dict) -> None:
 		'sort': dict_set[message.from_user.id]['command_param']['sort'],
 		'filters': dict_set[message.from_user.id]['command_param']['filters']
 	}
-	
 	# Запрос списка отелей по сортировке
 	response2 = api_request(method_type="POST", method_endswith=method_endswith, params=payload)
 	logger.debug('{} id города {} запрос списка отелей'.format(
@@ -31,100 +32,79 @@ def get_result(message: Message, dict_set: dict) -> None:
 		dict_set[message.from_user.id]['city_id']
 		)
 	)
-	with db:
-		com = Command.create(
-			user_id=message.from_user.id,
-			command=dict_set[message.from_user.id]['command_name'],
-			city_id=dict_set[message.from_user.id]['city_id'],
-			city=dict_set[message.from_user.id]['city'],
-			command_time=dict_set[message.from_user.id]['command_time']
-			)
-		par = CommandParam.create(
-			date_in=dict_set[message.from_user.id]['command_param']['date_in'],
-			date_out=dict_set[message.from_user.id]['command_param']['date_out'],
-			count_hotel=dict_set[message.from_user.id]['command_param']['count_hotel'],
-			photo=dict_set[message.from_user.id]['command_param']['photo'],
-			count_photo=dict_set[message.from_user.id]['command_param']['count_photo'],
-			price_min=dict_set[message.from_user.id]['command_param']['price_min'],
-			price_max=dict_set[message.from_user.id]['command_param']['price_max'],
-			hotel_distance_min=dict_set[message.from_user.id]['command_param']['hotel_distance_min'],
-			hotel_distance_max=dict_set[message.from_user.id]['command_param']['hotel_distance_max'],
-			command_id=com
+	if response2 is None:
+		bot.send_message(
+			message.from_user.id,
+			'{} получен не корректный ответ. Придется начать с начала'. format(message.from_user.full_name)
 		)
-		
-		for elem in response2['data']['propertySearch']['properties']:
-			# Запрос подробностей
-			dict_set[message.from_user.id]['command_result']['hotel_id'] = elem['id']
-			response3 = api_request(
-				method_type="POST",
-				method_endswith='properties/v2/detail',
-				params={
-					"currency": "USD",
-					"eapid": 1,
-					"locale": "ru_RU",
-					"siteId": 300000001,
-					"propertyId": dict_set[message.from_user.id]['command_result']['hotel_id']
-				}
+		return
+	currency = get_currency_price()
+	count = 0
+	for elem in response2['data']['propertySearch']['properties']:
+		# Запрос подробностей
+		result: Dict[int, dict[str, Any]] = {count: {'hotel_id': elem['id']}}
+		response3 = api_request(
+			method_type="POST",
+			method_endswith='properties/v2/detail',
+			params={
+				"currency": "USD",
+				"eapid": 1,
+				"locale": "ru_RU",
+				"siteId": 300000001,
+				"propertyId": result[count]['hotel_id']
+			}
+		)
+		if response3 is None:
+			bot.send_message(
+				message.from_user.id,
+				'{} получен не корректный ответ. Придется начать с начала'.format(message.from_user.full_name)
 			)
-			dict_set[message.from_user.id]['command_result']['hotel_name'] = elem['name']
-			dict_set[message.from_user.id]['command_result']['hotel_address'] = \
-				response3['data']['propertyInfo']['summary']['location']['address']['addressLine']
-			dict_set[message.from_user.id]['command_result']['hotel_distance'] = \
-				elem['destinationInfo']['distanceFromDestination']['value']
-			dict_set[message.from_user.id]['command_result']['cost_night'] = \
-				elem["price"]['lead']['amount']
-			cost = dict_set[message.from_user.id]['command_result']['cost_night'] * \
-				dict_set[message.from_user.id]['command_result']['hotel_night']
-			dict_set[message.from_user.id]['command_result']['cost'] = cost
-			answer = """
-			Отель: {hotel_name}\n
-			Адрес отеля: {hotel_address}\n
-			Расстояние до центра: {hotel_distance}км\n
-			Стоимость за {hotel_night} ночей: ${cost}\n
-			Стоимость за ночь: ${cost_night}\n
-			https://www.hotels.com/ho{hotel_id}\n
-			""".format(
-				hotel_name=dict_set[message.from_user.id]['command_result']['hotel_name'],
-				hotel_address=dict_set[message.from_user.id]['command_result']['hotel_address'],
-				hotel_distance=round(dict_set[message.from_user.id]['command_result']['hotel_distance'], 2),
-				cost=round(dict_set[message.from_user.id]['command_result']['cost'], 2),
-				cost_night=round(dict_set[message.from_user.id]['command_result']['cost_night'], 2),
-				hotel_night=dict_set[message.from_user.id]['command_result']['hotel_night'],
-				hotel_id=dict_set[message.from_user.id]['command_result']['hotel_id']
+			return
+		result[count]['hotel_name'] = elem['name']
+		result[count]['hotel_address'] = response3['data']['propertyInfo']['summary']['location']['address']['addressLine']
+		result[count]['hotel_distance'] = elem['destinationInfo']['distanceFromDestination']['value']
+		result[count]['cost_night'] = elem["price"]['lead']['amount'] * currency
+		cost = result[count]['cost_night'] * dict_set[message.from_user.id]['command_param']['hotel_night']
+		result[count]['cost'] = cost
+		answer = """
+		Название: {hotel_name}\n
+		Адрес: {hotel_address}\n
+		Расстояние от центра: {hotel_distance}км\n
+		Цена за ночь: {cost_night} руб.\n
+		Стоимость за {hotel_night} ночей: {cost} руб.\n\n
+		Ссылка: https://www.hotels.com/h{hotel_id}.Hotel-Information\n
+		""".format(
+			hotel_name=result[count]['hotel_name'],
+			hotel_address=result[count]['hotel_address'],
+			hotel_distance=round(result[count]['hotel_distance'], 2),
+			cost=round(result[count]['cost'], 2),
+			cost_night=round(result[count]['cost_night'], 2),
+			hotel_night=dict_set[message.from_user.id]['command_param']['hotel_night'],
+			hotel_id=result[count]['hotel_id']
+		)
+		bot.send_message(message.from_user.id, answer)
+		logger.debug('{} id города {} запрос подробностей id отеля {}'.format(
+			message.from_user.full_name,
+			dict_set[message.from_user.id]['city_id'],
+			result[count]['hotel_id']
 			)
-			bot.send_message(message.from_user.id, answer)
-			logger.debug('{} id города {} запрос подробностей id отеля {}'.format(
+		)
+		if dict_set[message.from_user.id]['command_param']['photo']:
+			logger.debug('{} id города {} выводим фото для id отеля {}'.format(
 				message.from_user.full_name,
-				dict_set[message.from_user.id]['city_id'],
-				dict_set[message.from_user.id]['command_result']['hotel_id']
+				dict_set[message.from_user.id]['city'],
+				result[count]['hotel_id']
 				)
 			)
-			res = CommandResult.create(
-				hotel_id=dict_set[message.from_user.id]['command_result']['hotel_id'],
-				hotel_name=dict_set[message.from_user.id]['command_result']['hotel_name'],
-				hotel_address=dict_set[message.from_user.id]['command_result']['hotel_address'],
-				hotel_distance=round(dict_set[message.from_user.id]['command_result']['hotel_distance'], 2),
-				cost=round(dict_set[message.from_user.id]['command_result']['cost'], 2),
-				cost_night=round(dict_set[message.from_user.id]['command_result']['cost_night'], 2),
-				hotel_night=dict_set[message.from_user.id]['command_result']['hotel_night'],
-				hotel_url='https://www.hotels.com/ho{}'.format(
-					dict_set[message.from_user.id]['command_result']['hotel_id']
-				),
-				command_id=com
-			)
-			if dict_set[message.from_user.id]['command_param']['photo']:
-				logger.debug('{} id города {} выводим фото для id отеля {}'.format(
-					message.from_user.full_name,
-					dict_set[message.from_user.id]['city'],
-					dict_set[message.from_user.id]['command_result']['hotel_id']
-					)
+			index = 0
+			photo = []
+			while index < int(dict_set[message.from_user.id]['command_param']['count_photo']):
+				photo.append(InputMediaPhoto(
+					response3['data']['propertyInfo']['propertyGallery']['images'][index]['image']['url'])
 				)
-				index = 0
-				photo = []
-				while index < int(dict_set[message.from_user.id]['command_param']['count_photo']):
-					photo.append(InputMediaPhoto(
-						response3['data']['propertyInfo']['propertyGallery']['images'][index]['image']['url'])
-					)
-					index += 1
-				bot.send_media_group(message.chat.id, photo)
-			
+				index += 1
+			bot.send_media_group(message.chat.id, photo)
+		count += 1
+	dict_set[message.from_user.id]['command_result'] = result
+	save_in_db(message, dict_set)
+	

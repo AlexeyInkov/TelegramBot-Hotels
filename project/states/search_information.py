@@ -2,6 +2,7 @@ from telebot.handler_backends import State, StatesGroup
 
 
 class UserInfoState(StatesGroup):
+    reset = State()
     lp_date_in = State()
     lp_date_out = State()
     lp_city = State()

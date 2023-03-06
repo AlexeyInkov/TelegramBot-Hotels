@@ -43,8 +43,6 @@ def bot_lowprice(message: Message) -> None:
 @bot.callback_query_handler(func=lambda call: call.data.startswith(calendar_in.prefix), state=UserInfoState.lp_date_in)
 def get_date_in(call: CallbackQuery) -> None:
     name, action, year, month, day = call.data.split(calendar_in.sep)
-    # date = calendar.calendar_query_handler(bot=bot, call=call, name=name, action=action, year=year, month=month,
-    #                                        day=day)
     if action == 'DAY':
         logger.debug('{} Заезд {}/{}/{}'.format(call.from_user.full_name, day, month, year))
         lowprice_dict[call.from_user.id]['command_param']['date_in_dict'] = {
@@ -69,8 +67,6 @@ def get_date_in(call: CallbackQuery) -> None:
 @bot.callback_query_handler(func=lambda call: call.data.startswith(calendar_in.prefix), state=UserInfoState.lp_date_out)
 def get_date_out(call: CallbackQuery) -> None:
     name, action, year, month, day = call.data.split(calendar_in.sep)
-    # date = calendar.calendar_query_handler(bot=bot, call=call, name=name, action=action, year=year, month=month,
-    #                                        day=day)
     if action == 'DAY':
         lowprice_dict[call.from_user.id]['command_param']['date_out_dict'] = {
             'day': int(day),
@@ -90,7 +86,7 @@ def get_date_out(call: CallbackQuery) -> None:
         hotel_night = (date_out - date_in).days
         lowprice_dict[call.from_user.id]['command_param']['date_in'] = date_in
         lowprice_dict[call.from_user.id]['command_param']['date_out'] = date_out
-        lowprice_dict[call.from_user.id]['command_result'] = {'hotel_night': hotel_night}
+        lowprice_dict[call.from_user.id]['command_param']['hotel_night'] = hotel_night
         bot.send_message(call.from_user.id, 'Понял выезжаем {}/{}/{}\n'
                                             'Посчитаем сколько ночей\n'.format(day, month, year))
         bot.send_message(call.from_user.id, '...')
@@ -206,6 +202,7 @@ def get_photo(message: Message) -> None:
         lowprice_dict[message.from_user.id]['command_param']['photo'] = False
         logger.debug('{} делает запрос к API'.format(message.from_user.full_name))
         get_result(message=message, dict_set=lowprice_dict)
+        bot.set_state(message.from_user.id, UserInfoState.reset)
     
         
 @bot.message_handler(state=UserInfoState.lp_count_photo)
@@ -217,6 +214,7 @@ def get_count_photo(message: Message) -> None:
             lowprice_dict[message.from_user.id]['command_param']['count_photo'] = 10
         logger.debug('{} делает запрос к API'.format(message.from_user.full_name))
         get_result(message=message, dict_set=lowprice_dict)
+        bot.set_state(message.from_user.id, UserInfoState.reset)
     else:
         bot.send_message(message.from_user.id, 'Необходимо ввести число')
         logger.debug('{} ввел не корректное число фото'.format(message.from_user.full_name))

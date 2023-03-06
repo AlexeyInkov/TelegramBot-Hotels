@@ -5,3 +5,6 @@ telebot==0.0.5
 telebot-calendar==1.2
 loguru~=0.6.0
 peewee~=3.16.0
+
+bs4~=0.0.1
+beautifulsoup4~=4.11.2

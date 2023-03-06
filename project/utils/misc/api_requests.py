@@ -4,10 +4,7 @@ from config_data import config
 from loguru import logger
 
 
-def api_request(method_endswith: str,  # Меняется в зависимости от запроса. locations/v3/search либо properties/v2/list
-                params: dict,  # Параметры, если locations/v3/search, то {'q': 'Рига', 'locale': 'ru_RU'}
-                method_type: str  # тип запроса GET\POST
-                ):
+def api_request(method_endswith: str, params: dict, method_type: str):
     url = f"https://hotels4.p.rapidapi.com/{method_endswith}"
     try:
         if method_type == 'GET':
@@ -16,6 +13,10 @@ def api_request(method_endswith: str,  # Меняется в зависимос�
             return json.loads(post_request(url=url, params=params))
     except TypeError:
         logger.debug('API ответил не корректно')
+        return None
+    except TimeoutError:
+        logger.debug('Не дождались ответа от API')
+        return None
 
 
 def get_request(url: str, params: dict) -> str:
