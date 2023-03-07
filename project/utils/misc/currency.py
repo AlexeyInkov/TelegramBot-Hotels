@@ -9,6 +9,3 @@ def get_currency_price() -> float:
 	"""
 	data = requests.get('https://www.cbr-xml-daily.ru/daily_json.js').json()
 	return data['Valute']['USD']['Value']
-
-
-#  print(get_currency_price())
