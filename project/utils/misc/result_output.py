@@ -4,6 +4,7 @@ from loader import bot
 from utils.misc.api_requests import api_request
 from utils.misc.db_save import save_in_db
 from utils.misc.currency import get_currency_price
+from keyboards.inline.link import link
 from loguru import logger
 
 
@@ -40,9 +41,10 @@ def get_result(message: Message, dict_set: dict) -> None:
 		return
 	currency = get_currency_price()
 	count = 0
+	result: Dict[int, dict[str, Any]] = {}
 	for elem in response2['data']['propertySearch']['properties']:
 		# Запрос подробностей
-		result: Dict[int, dict[str, Any]] = {count: {'hotel_id': elem['id']}}
+		result[count] = {'hotel_id': elem['id']}
 		response3 = api_request(
 			method_type="POST",
 			method_endswith='properties/v2/detail',
@@ -71,8 +73,7 @@ def get_result(message: Message, dict_set: dict) -> None:
 		Адрес: {hotel_address}\n
 		Расстояние от центра: {hotel_distance}км\n
 		Цена за ночь: {cost_night} руб.\n
-		Стоимость за {hotel_night} ночей: {cost} руб.\n\n
-		Ссылка: https://www.hotels.com/h{hotel_id}.Hotel-Information\n
+		Стоимость за {hotel_night} ночей: {cost} руб.\n
 		""".format(
 			hotel_name=result[count]['hotel_name'],
 			hotel_address=result[count]['hotel_address'],
@@ -80,9 +81,9 @@ def get_result(message: Message, dict_set: dict) -> None:
 			cost=round(result[count]['cost'], 2),
 			cost_night=round(result[count]['cost_night'], 2),
 			hotel_night=dict_set[message.from_user.id]['command_param']['hotel_night'],
-			hotel_id=result[count]['hotel_id']
 		)
-		bot.send_message(message.from_user.id, answer)
+		url = 'https://www.hotels.com/h{hotel_id}.Hotel-Information'.format(hotel_id=result[count]['hotel_id'])
+		bot.send_message(message.from_user.id, answer, reply_markup=link(url))
 		logger.debug('{} id города {} запрос подробностей id отеля {}'.format(
 			message.from_user.full_name,
 			dict_set[message.from_user.id]['city_id'],

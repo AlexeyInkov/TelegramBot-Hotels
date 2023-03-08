@@ -14,7 +14,7 @@ def api_request(method_endswith: str, params: dict, method_type: str):
     except TypeError:
         logger.debug('API ответил не корректно')
         return None
-    except TimeoutError:
+    except requests.exceptions.ReadTimeout:
         logger.debug('Не дождались ответа от API')
         return None
 
