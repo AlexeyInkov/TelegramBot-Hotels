@@ -3,6 +3,6 @@ from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 def city(city_dict: dict) -> InlineKeyboardMarkup:
 	keyboard = InlineKeyboardMarkup(row_width=1)
-	for key in city_dict:
-		keyboard.add(InlineKeyboardButton(text=city_dict[key][1], callback_data=str(city_dict[key][0])))
+	for key, value in city_dict.items():
+		keyboard.add(InlineKeyboardButton(text=value, callback_data=str(key)))
 	return keyboard

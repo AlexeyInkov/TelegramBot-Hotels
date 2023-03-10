@@ -1,1 +1,1 @@
-from . import chose
+from . import choice

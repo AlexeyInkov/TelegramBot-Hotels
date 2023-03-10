@@ -1,2 +1,2 @@
-from . import chose
+from . import choice
 from . import link

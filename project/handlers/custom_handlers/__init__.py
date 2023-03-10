@@ -1,5 +1,4 @@
-from . import hello
-from . import bestdeal
-from . import highprice
+
+from . import commands
 from . import history
-from . import lowprice
+# from . import lowprice

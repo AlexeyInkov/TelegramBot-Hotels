@@ -8,11 +8,11 @@ from loguru import logger
 @bot.message_handler(commands=["history"])
 def bot_history(message: Message):
     bot.send_message(message.from_user.id, 'Сколько последних поисков вывести?')
-    bot.set_state(message.from_user.id, UserInfoState.hi_count)
+    bot.set_state(message.from_user.id, UserInfoState.history_count)
     logger.debug('{} (Вход в history)'.format(message.from_user.full_name))
 
 
-@bot.message_handler(state=UserInfoState.hi_count)
+@bot.message_handler(state=UserInfoState.history_count)
 def result_history(message: Message):
     if message.text.isdigit():
         if int(message.text) > 5:
