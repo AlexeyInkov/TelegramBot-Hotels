@@ -1,11 +1,11 @@
 from typing import Dict, Any
 from telebot.types import Message, InputMediaPhoto
+from loguru import logger
 from loader import bot
 from utils.misc.api_requests import api_request
 from utils.misc.db_save import save_in_db
 from utils.misc.currency import get_currency_price
 from keyboards.inline.link import link
-from loguru import logger
 
 
 def get_result(message: Message, dict_set: dict) -> None:

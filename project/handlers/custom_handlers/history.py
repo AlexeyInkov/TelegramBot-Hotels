@@ -1,8 +1,8 @@
 from telebot.types import Message
+from loguru import logger
 from loader import bot
 from database.model import *
 from states.search_information import UserInfoState
-from loguru import logger
 
 
 @bot.message_handler(commands=["history"])
