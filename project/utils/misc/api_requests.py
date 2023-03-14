@@ -1,7 +1,7 @@
 import json
 import requests
-from config_data import config
 from loguru import logger
+from config_data import config
 
 
 def api_request(method_endswith: str, params: dict, method_type: str):
