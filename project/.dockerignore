@@ -1,0 +1,17 @@
+log
+Source data
+history.db
+template
+**/.git
+**/.gitignore
+**/.vscode
+**/coverage
+
+**/.aws
+**/.ssh
+Dockerfile
+README.md
+docker-compose.yml
+**/.DS_Store
+**/venv
+**/env

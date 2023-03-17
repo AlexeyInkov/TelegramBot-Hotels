@@ -1,0 +1,9 @@
+version: '3.11'
+
+services:
+  bot:
+    build:
+      context: .
+    volumes:
+      - /app
+    env_file: ./template/.env
